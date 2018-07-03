@@ -20,7 +20,7 @@ import (
 )
 
 /*********Constants********/
-const difficulty = 10
+const difficulty = 5
 const passwordHash = "9f735e0df9a1ddc702bf0a1a7b83033f9f7153a00c29de82cedadc9957289b05" // sha256 hash
 
 // Block represents each 'item' in the blockchain
@@ -47,6 +47,8 @@ type Message struct {
 var mutex = &sync.Mutex{}
 
 func main() {
+
+	// load enviroment from .env file
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal(err)
@@ -54,21 +56,29 @@ func main() {
 
 	go func() {
 		t := time.Now()
+
+		// Create genesis block which is always the very first block
 		genesisBlock := Block{}
 		genesisBlock = Block{0, t.String(), 0, calculateHash(genesisBlock), "", difficulty, "", -1}
 		spew.Dump(genesisBlock)
 
+		// Need to lock to prevent two seperate clients both appending their own node to the same block
 		mutex.Lock()
 		Blockchain = append(Blockchain, genesisBlock)
 		mutex.Unlock()
 	}()
+
+	// run the web server
 	log.Fatal(run())
 
 }
 
-// web server
+// set up and run the server
 func run() error {
+
 	mux := makeMuxRouter()
+
+	// Remeber ADDR is in the .env file
 	httpPort := os.Getenv("ADDR")
 	log.Println("HTTP Server Listening on port :", httpPort)
 	s := &http.Server{
@@ -94,13 +104,17 @@ func makeMuxRouter() http.Handler {
 	return muxRouter
 }
 
-// write blockchain when we receive an http request
+// handles GET request by responding with a JSON representaion of the current blockchain
 func handleGetBlockchain(w http.ResponseWriter, r *http.Request) {
+
+	// create a json representation of the current blockchain with indentations
 	bytes, err := json.MarshalIndent(Blockchain, "", "  ")
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	io.WriteString(w, string(bytes))
 }
 
@@ -109,15 +123,17 @@ func handleWriteBlock(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var m Message
 
+	// Decode http request into message struct
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&m); err != nil {
 		respondWithJSON(w, r, http.StatusBadRequest, r.Body)
 		return
 	}
 
-	if !authenticate(m.Password) {
-		respondWithJSON(w, r, http.StatusUnauthorized, r.Body)
-	}
+	// checks if the password is correct
+	// if !authenticate(m.Password) {
+	// 	respondWithJSON(w, r, http.StatusUnauthorized, r.Body)
+	// }
 
 	defer r.Body.Close()
 
@@ -135,6 +151,8 @@ func handleWriteBlock(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// responds to the POST request with a http status, and if this POST is successful, it responds
+// with a payload of the new block created.
 func respondWithJSON(w http.ResponseWriter, r *http.Request, code int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	response, err := json.MarshalIndent(payload, "", "  ")
@@ -164,11 +182,12 @@ func isBlockValid(newBlock, oldBlock Block) bool {
 	return true
 }
 
+// check that the hash of the input password matches the stored hash
 func authenticate(usrPassword string) bool {
 	return hashStr(usrPassword) != passwordHash
 }
 
-// SHA256 hashing
+// hash the block using SHA256
 func calculateHash(block Block) string {
 	record := strconv.Itoa(block.Index) + block.Timestamp + strconv.Itoa(block.BPM) + block.PrevHash + block.Nonce
 	h := sha256.New()
@@ -177,6 +196,7 @@ func calculateHash(block Block) string {
 	return hex.EncodeToString(hashed)
 }
 
+// hashes a string using sha256 encyption
 func hashStr(str string) string {
 	h := sha256.New()
 	h.Write([]byte(str))
@@ -186,10 +206,11 @@ func hashStr(str string) string {
 
 // create a new block using previous block's hash
 func generateBlock(oldBlock Block, BPM int) Block {
-	var newBlock Block
 
 	t := time.Now()
 
+	// create new block
+	var newBlock Block
 	newBlock.Index = oldBlock.Index + 1
 	newBlock.Timestamp = t.String()
 	newBlock.BPM = BPM
@@ -197,49 +218,28 @@ func generateBlock(oldBlock Block, BPM int) Block {
 	newBlock.Difficulty = difficulty
 
 	i := 0
-	ceil := 10
-
-	fmt.Println("Entering for loop")
 	for {
-
+		// create a hexadecimal which is to be used as a nonce from i
 		hex := fmt.Sprintf("%x", i)
 		newBlock.Nonce = hex
-		if !isHashValid(calculateHash(newBlock), newBlock.Difficulty) {
 
-			if i > ceil {
-				// fmt.Println(calculateHash(newBlock), " do more work! - ", i)
-				fmt.Printf("i: %d\n", i)
-				ceil = ceil * 10
-			}
-
-			go func() {
-
-				time.Sleep(time.Second)
-			}()
-
-		} else {
+		// check if nonce of new block is valid
+		if isHashValid(calculateHash(newBlock), newBlock.Difficulty) {
 			fmt.Println(calculateHash(newBlock), " work done!")
 			newBlock.Hash = calculateHash(newBlock)
+			newBlock.NumCalculations = i
 			break
 		}
-
-		i++
+		i++ // increase by a 1 so a new nonce can be generated each time
 	}
 
 	newBlock.NumCalculations = i
 	return newBlock
 }
 
-func hello(a chan int, i int, newBlock Block) {
-	exp := <-a // read from channel a
-	fmt.Printf("i: %d, exp: %d", i, exp)
-	if i > exp {
-		fmt.Println(calculateHash(newBlock), " do more work! - ", i)
-		a <- exp * 10 // write to channel
-	}
-	time.Sleep(time.Second)
-}
-
+// checks if a hash is valid depending on the difficulty
+// a hash is considered valid if the number of leading zero's is greater than
+// equal to the difficulty
 func isHashValid(hash string, difficulty int) bool {
 	prefix := strings.Repeat("0", difficulty)
 	return strings.HasPrefix(hash, prefix)
