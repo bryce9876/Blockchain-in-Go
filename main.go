@@ -14,37 +14,12 @@ import (
 	"sync"
 	"time"
 
+	"Blockchain/model"
+
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 )
-
-/*********Constants********/
-const difficulty = 5
-const passwordHash = "9f735e0df9a1ddc702bf0a1a7b83033f9f7153a00c29de82cedadc9957289b05" // sha256 hash
-
-// Block represents each 'item' in the blockchain
-type Block struct {
-	Index           int
-	Timestamp       string
-	BPM             int
-	Hash            string
-	PrevHash        string
-	Difficulty      int
-	Nonce           string
-	NumCalculations int
-}
-
-// Blockchain is a series of validated Blocks
-var Blockchain []Block
-
-// Message takes incoming JSON payload for writing heart rate
-type Message struct {
-	BPM      int
-	Password string
-}
-
-var mutex = &sync.Mutex{}
 
 func main() {
 
@@ -58,19 +33,19 @@ func main() {
 		t := time.Now()
 
 		// Create genesis block which is always the very first block
-		genesisBlock := Block{}
-		genesisBlock = Block{0, t.String(), 0, calculateHash(genesisBlock), "", difficulty, "", -1}
+		genesisBlock := model.Block{}
+		genesisBlock = model.Block{0, t.String(), 0, calculateHash(genesisBlock), "", model.Difficulty, "", -1}
 		spew.Dump(genesisBlock)
 
 		// Need to lock to prevent two seperate clients both appending their own node to the same block
+		var mutex = &sync.Mutex{}
 		mutex.Lock()
-		Blockchain = append(Blockchain, genesisBlock)
+		modelBlockchain = append(model.Blockchain, genesisBlock)
 		mutex.Unlock()
 	}()
-
+	
 	// run the web server
 	log.Fatal(run())
-
 }
 
 // set up and run the server
@@ -108,7 +83,7 @@ func makeMuxRouter() http.Handler {
 func handleGetBlockchain(w http.ResponseWriter, r *http.Request) {
 
 	// create a json representation of the current blockchain with indentations
-	bytes, err := json.MarshalIndent(Blockchain, "", "  ")
+	bytes, err := json.MarshalIndent(model.Blockchain, "", "  ")
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -139,12 +114,12 @@ func handleWriteBlock(w http.ResponseWriter, r *http.Request) {
 
 	//ensure atomicity when creating new block
 	mutex.Lock()
-	newBlock := generateBlock(Blockchain[len(Blockchain)-1], m.BPM)
+	newBlock := generateBlock(modle.Blockchain[len(model.Blockchain)-1], m.BPM)
 	mutex.Unlock()
 
-	if isBlockValid(newBlock, Blockchain[len(Blockchain)-1]) {
-		Blockchain = append(Blockchain, newBlock)
-		spew.Dump(Blockchain)
+	if isBlockValid(newBlock, model.Blockchain[len(model.Blockchain)-1]) {
+		Blockchain = append(model.Blockchain, newBlock)
+		spew.Dump(model.Blockchain)
 	}
 
 	respondWithJSON(w, r, http.StatusCreated, newBlock)
@@ -166,7 +141,7 @@ func respondWithJSON(w http.ResponseWriter, r *http.Request, code int, payload i
 }
 
 // make sure block is valid by checking index, and comparing the hash of the previous block
-func isBlockValid(newBlock, oldBlock Block) bool {
+func isBlockValid(newBlock, oldBlock mpdel.Block) bool {
 	if oldBlock.Index+1 != newBlock.Index {
 		return false
 	}
@@ -184,11 +159,11 @@ func isBlockValid(newBlock, oldBlock Block) bool {
 
 // check that the hash of the input password matches the stored hash
 func authenticate(usrPassword string) bool {
-	return hashStr(usrPassword) != passwordHash
+	return hashStr(usrPassword) != model.PasswordHash
 }
 
 // hash the block using SHA256
-func calculateHash(block Block) string {
+func calculateHash(block model.Block) string {
 	record := strconv.Itoa(block.Index) + block.Timestamp + strconv.Itoa(block.BPM) + block.PrevHash + block.Nonce
 	h := sha256.New()
 	h.Write([]byte(record))
@@ -205,17 +180,17 @@ func hashStr(str string) string {
 }
 
 // create a new block using previous block's hash
-func generateBlock(oldBlock Block, BPM int) Block {
+func generateBlock(oldBlock model.Block, BPM int) model.Block {
 
 	t := time.Now()
 
 	// create new block
-	var newBlock Block
+	var newBlock model.Block
 	newBlock.Index = oldBlock.Index + 1
 	newBlock.Timestamp = t.String()
 	newBlock.BPM = BPM
 	newBlock.PrevHash = oldBlock.Hash
-	newBlock.Difficulty = difficulty
+	newBlock.Difficulty = block.Difficulty
 
 	i := 0
 	for {
