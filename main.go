@@ -40,10 +40,10 @@ func main() {
 		// Need to lock to prevent two seperate clients both appending their own node to the same block
 		var mutex = &sync.Mutex{}
 		mutex.Lock()
-		modelBlockchain = append(model.Blockchain, genesisBlock)
+		model.Blockchain = append(model.Blockchain, genesisBlock)
 		mutex.Unlock()
 	}()
-	
+
 	// run the web server
 	log.Fatal(run())
 }
@@ -96,7 +96,7 @@ func handleGetBlockchain(w http.ResponseWriter, r *http.Request) {
 // takes JSON payload as an input for heart rate (BPM)
 func handleWriteBlock(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	var m Message
+	var m model.Message
 
 	// Decode http request into message struct
 	decoder := json.NewDecoder(r.Body)
@@ -113,12 +113,13 @@ func handleWriteBlock(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	//ensure atomicity when creating new block
+	var mutex = &sync.Mutex{}
 	mutex.Lock()
-	newBlock := generateBlock(modle.Blockchain[len(model.Blockchain)-1], m.BPM)
+	newBlock := generateBlock(model.Blockchain[len(model.Blockchain)-1], m.BPM)
 	mutex.Unlock()
 
 	if isBlockValid(newBlock, model.Blockchain[len(model.Blockchain)-1]) {
-		Blockchain = append(model.Blockchain, newBlock)
+		model.Blockchain = append(model.Blockchain, newBlock)
 		spew.Dump(model.Blockchain)
 	}
 
@@ -141,7 +142,7 @@ func respondWithJSON(w http.ResponseWriter, r *http.Request, code int, payload i
 }
 
 // make sure block is valid by checking index, and comparing the hash of the previous block
-func isBlockValid(newBlock, oldBlock mpdel.Block) bool {
+func isBlockValid(newBlock, oldBlock model.Block) bool {
 	if oldBlock.Index+1 != newBlock.Index {
 		return false
 	}
@@ -190,7 +191,7 @@ func generateBlock(oldBlock model.Block, BPM int) model.Block {
 	newBlock.Timestamp = t.String()
 	newBlock.BPM = BPM
 	newBlock.PrevHash = oldBlock.Hash
-	newBlock.Difficulty = block.Difficulty
+	newBlock.Difficulty = model.Difficulty
 
 	i := 0
 	for {
