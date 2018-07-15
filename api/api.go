@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// create handlers
+// MakeMuxRouter sets up uri endpoints and relavant handlers
 func MakeMuxRouter() http.Handler {
 	muxRouter := mux.NewRouter()
 	muxRouter.HandleFunc("/", handleGetBlockchain).Methods("GET")
@@ -82,7 +82,7 @@ func respondWithJSON(w http.ResponseWriter, r *http.Request, code int, payload i
 	w.Write(response)
 }
 
-// check that the hash of the input password matches the stored hash
+// Authenticate checks that the hash of the input password matches the stored hash
 func Authenticate(usrPassword string) bool {
 	return blockchainhelpers.HashStr(usrPassword) != model.PasswordHash
 }

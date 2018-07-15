@@ -1,8 +1,10 @@
 package model
 
-/*********Constants********/
+// Difficulty is how hard it is to generate a valid hash
 const Difficulty = 5
-const PasswordHash = "9f735e0df9a1ddc702bf0a1a7b83033f9f7153a00c29de82cedadc9957289b05" // sha256 hash
+
+// PasswordHash is hash of the client password that allow server side hash calculation
+const PasswordHash = "9f735e0df9a1ddc702bf0a1a7b83033f9f7153a00c29de82cedadc9957289b05"
 
 // Block represents each 'item' in the blockchain
 type Block struct {
@@ -11,7 +13,7 @@ type Block struct {
 	BPM             int
 	Hash            string
 	PrevHash        string
-	Difficulty      int	
+	Difficulty      int
 	Nonce           string
 	NumCalculations int
 }

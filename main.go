@@ -41,11 +41,14 @@ func main() {
 // set up and run the server
 func run() error {
 
+	// set up uri endpoints
 	mux := api.MakeMuxRouter()
 
 	// Remeber ADDR is in the .env file
 	httpPort := os.Getenv("ADDR")
 	log.Println("HTTP Server Listening on port :", httpPort)
+
+	// configure and run server
 	s := &http.Server{
 		Addr:           ":" + httpPort,
 		Handler:        mux,
@@ -53,7 +56,6 @@ func run() error {
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-
 	if err := s.ListenAndServe(); err != nil {
 		return err
 	}

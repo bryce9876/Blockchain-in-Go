@@ -10,7 +10,8 @@ import (
 	"time"
 )
 
-// make sure block is valid by checking index, and comparing the hash of the previous block
+// IsBlockValid returns if the block is valid by checking index, and comparing
+// the hash of the previous block
 func IsBlockValid(newBlock, oldBlock model.Block) bool {
 	if oldBlock.Index+1 != newBlock.Index {
 		return false
@@ -27,16 +28,24 @@ func IsBlockValid(newBlock, oldBlock model.Block) bool {
 	return true
 }
 
-// hash the block using SHA256
+// CalculateHash returns the hash of the the block using SHA256
 func CalculateHash(block model.Block) string {
-	record := strconv.Itoa(block.Index) + block.Timestamp + strconv.Itoa(block.BPM) + block.PrevHash + block.Nonce
+
+	// Represents the object as a string
+	record := strconv.Itoa(block.Index) +
+		block.Timestamp +
+		strconv.Itoa(block.BPM) +
+		block.PrevHash +
+		block.Nonce
+
+	// Hashes string that represented the block
 	h := sha256.New()
 	h.Write([]byte(record))
 	hashed := h.Sum(nil)
 	return hex.EncodeToString(hashed)
 }
 
-// create a new block using previous block's hash
+// GenerateBlock creates a new block using previous block's hash
 func GenerateBlock(oldBlock model.Block, BPM int) model.Block {
 
 	t := time.Now()
@@ -49,27 +58,29 @@ func GenerateBlock(oldBlock model.Block, BPM int) model.Block {
 	newBlock.PrevHash = oldBlock.Hash
 	newBlock.Difficulty = model.Difficulty
 
-	i := 0
+	nonce := 0
 	for {
 		// create a hexadecimal which is to be used as a nonce from i
-		hex := fmt.Sprintf("%x", i)
+		hex := fmt.Sprintf("%x", nonce)
 		newBlock.Nonce = hex
 
 		// check if nonce of new block is valid
 		if isHashValid(CalculateHash(newBlock), newBlock.Difficulty) {
 			fmt.Println(CalculateHash(newBlock), " work done!")
 			newBlock.Hash = CalculateHash(newBlock)
-			newBlock.NumCalculations = i
+
+			// As nonce began at zero and is incremened once for each calculation,
+			// the nonce value will equal the number of calculations done
+			newBlock.NumCalculations = nonce
 			break
 		}
-		i++ // increase by a 1 so a new nonce can be generated each time
+		nonce++ // incrementing allows a new nonce can be generated each time
 	}
 
-	newBlock.NumCalculations = i
 	return newBlock
 }
 
-// hashes a string using sha256 encyption
+// HashStr hashes a string using sha256
 func HashStr(str string) string {
 	h := sha256.New()
 	h.Write([]byte(str))
