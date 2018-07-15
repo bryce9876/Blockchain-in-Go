@@ -11,6 +11,7 @@ nonce calculaiton to be done client site and verified server side, but this is j
 
 
 ## How to use it
-Just run it using "go run main.go"
-
-Make sure you have Go installed first
+- Make sure you have Go installed
+- Clone repo
+- Make a file called .env, and put the address of the port you want to run the server on in this file e.g. ADDR=8080
+- Then just run it using "go run main.go"
