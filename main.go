@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
 	"Blockchain/api"
@@ -31,11 +30,8 @@ func main() {
 		genesisBlock = model.Block{0, t.String(), 0, blockchainhelpers.CalculateHash(genesisBlock), "", model.Difficulty, "", -1}
 		spew.Dump(genesisBlock)
 
-		// Need to lock to prevent two seperate clients both appending their own node to the same block
-		var mutex = &sync.Mutex{}
-		mutex.Lock()
+		// add genesis block to blockchain
 		model.Blockchain = append(model.Blockchain, genesisBlock)
-		mutex.Unlock()
 	}()
 
 	// run the web server
